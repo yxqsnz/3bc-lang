@@ -12,7 +12,7 @@ jobs:
       CC_LD: "./zig cc"
       TARGETS: >-
         i386-linux-gnu x86_64-linux-gnu arm-linux-musleabi aarch64-linux-gnu powerpc-linux-musl
-        powerpc64-linux-musl riscv64-linux-musl x86_64-macos aarch64-macos
+        powerpc64-linux-musl riscv64-linux-musl mips-linux-musl x86_64-macos aarch64-macos
         i386-windows x86_64-windows aarch64-windows
 
     steps:
@@ -43,7 +43,36 @@ jobs:
         with:
           files: "*.zip"
 
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v3
+      
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+      
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+      
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: rodrigodornelles
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          push: true
+          tags: rodrigodornelles/3bc-lang:${{github.ref_name}},rodrigodornelles/3bc-lang:latest
+          platforms: >
+            linux/386,linux/amd64,linux/arm/v5,linux/arm/v7,linux/arm64/v8,
+            linux/mips64le,linux/ppc64le,linux/s390x
+
   freebsd:
+    if: false
     runs-on: macos-10.15
     steps:
       - name: Checkout project
@@ -72,7 +101,7 @@ jobs:
           files: |
             *.tar.gz
 
-  nodejs: 
+  emscripten: 
     runs-on: ubuntu-latest
     container: emscripten/emsdk     
     steps:
@@ -120,8 +149,8 @@ jobs:
           mv bin npm
           mv glue npm
           mv full npm
-          tar -czf 3bc-nodejs.tar.gz ./npm/*
-          zip -r 3bc-nodejs.zip ./npm/*
+          tar -czf 3bc-web-emscripten.tar.gz ./npm/*
+          zip -r 3bc-web-emscripten.zip ./npm/*
 
       - name: Upload binaries to github
         uses: softprops/action-gh-release@v1

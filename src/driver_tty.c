@@ -92,7 +92,9 @@ data_3bc_t driver_tty_input(
         invalid = false;
 
 /** capture input **/
-#if defined(TBC_P_COMPUTER_OLD)
+#if defined(TBC_NOT_FILES)
+
+#elif defined(TBC_P_COMPUTER_OLD)
         c[0] = cgetc();
 #elif defined(TBC_USE_POSIX)
         tcsetattr(STDIN_FILENO, TCSANOW, &term_new_attr);
@@ -134,15 +136,32 @@ data_3bc_t driver_tty_input(
             break;
 
         case STRI:
-            invalid |= !sscanf(c, "%d", &value);
+            /** verify is a decimal number and cast **/
+            invalid |= (c[0] < 0x30 || c[0] > 0x39);
+            value = (c[0] - '0');
             break;
 
         case STRO:
-            invalid |= !sscanf(c, "%o", &value);
+            /** verify is a octal number and cast **/
+            invalid = (c[0] < 0x30 || c[0] > 0x37);
+            value = (c[0] - '0');
             break;
 
         case STRX:
-            invalid |= !sscanf(c, "%x", &value);
+            /** add upcase bit **/
+            c[0] |= 0x20;
+            /** [0-9] casting hexadecimal**/
+            if (c[0] >= 0x30 && c[0] <= 0x39) {
+                value = (c[0] - '0');
+                break;
+            }
+            /** [A-F] casting hexadecimal **/
+            if (c[0] >= 0x61 && c[0] <= 0x66) {
+                value = (c[0] - 'a' + 0xa);
+                break;
+            }
+            /** verified that it is wrong! */
+            invalid |= true;
             break;
         }
     } while (invalid);
@@ -212,7 +231,7 @@ void driver_tty_output(struct app_3bc_s* const app, struct tty_3bc_s tty,
 void driver_tty_output_raw(
     struct app_3bc_s* const app, struct tty_3bc_s tty, const char* string)
 {
-#if defined(_3BC_NUTTX)
+#if defined(_3BC_NUTTX) && !defined(TBC_NOT_FILES)
     /** fix stream flush on nuttx when repl|output **/
     if (tty.type == STREAM_TYPE_COMPUTER_STD) {
         fputs(string, tty.io.stream);
@@ -220,7 +239,7 @@ void driver_tty_output_raw(
         return;
     }
 #endif
-#if defined(TBC_P_COMPUTER)
+#if defined(TBC_P_COMPUTER) && !defined(TBC_NOT_FILES)
     /** stream standard c output **/
     if (tty.type == STREAM_TYPE_COMPUTER_STD) {
         fputs(string, tty.io.stream);
